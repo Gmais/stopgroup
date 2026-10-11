@@ -135,6 +135,7 @@ function renderTop() {
   const n = v.round && v.phase !== 'lobby' ? ` · Rodada ${v.round.n}` : '';
   topEl.innerHTML = `<div class="in"><span class="brand">STOP!</span>
     <div class="rname"><span class="dot ${S.online ? '' : 'bad'}" title="${S.online ? 'Conectado' : 'Sem conexão'}"></span>${esc(v.name)}<small>${esc(v.code)}${n}</small></div>
+${v.you.isAdmin ? `<button class="icon small" data-act="openPlayers" aria-label="Gerenciar jogadores">👥 ${v.players.length}</button>` : ''}
     <button class="icon small" data-act="soundMenu" aria-label="Som">${Snd.mute ? '🔇' : '🔊'}</button>
     <button class="icon small ghost" data-act="leaveRoom" aria-label="Sair da sala">Sair</button></div>`;
   document.documentElement.style.setProperty('--topH', topEl.offsetHeight + 'px');
@@ -147,7 +148,7 @@ function playersList(v, { manage = false } = {}) {
     <span class="dot ${p.connected ? '' : 'off'}" title="${p.connected ? 'Online' : 'Desconectado'}"></span>
     <span class="nm">${esc(p.name)}${p.id === v.you.id ? ' <small>(você)</small>' : ''}</span>
     ${p.isAdmin ? '<span class="chip adm">👑 Admin</span>' : ''}${p.connected ? '' : '<span class="chip mut">offline</span>'}
-    ${manage && v.you.isAdmin && !p.isAdmin ? `<button class="small" data-act="makeAdmin" data-id="${p.id}" title="Transferir administração">👑</button><button class="small danger" data-act="kick" data-id="${p.id}" aria-label="Remover ${esc(p.name)}">✕</button>` : ''}
+    ${manage && v.you.isAdmin && !p.isAdmin ? `<button class="small" data-act="makeAdmin" data-id="${p.id}" title="Transferir administração">👑 Tornar admin</button><button class="small danger" data-act="kick" data-id="${p.id}" aria-label="Remover ${esc(p.name)}">✕ Remover</button>` : ''}
   </li>`).join('')}</ul>`;
 }
 
@@ -508,6 +509,14 @@ function rankTable(v, mode) {
 
 function renderModal() {
   const v = S.view;
+  if (S.ui.showPlayers && v?.you.isAdmin) {
+    modal.hidden = false;
+    modal.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="Jogadores">
+      <div class="row sp"><h2>Jogadores (${v.players.length}/${v.maxPlayers})</h2><button data-act="closePlayers" aria-label="Fechar">✕</button></div>
+      <p class="muted">Remova quem estiver atrapalhando ou desconectado. A pessoa removida não consegue voltar com o mesmo aparelho.</p>
+      ${playersList(v, { manage: true })}</div>`;
+    return;
+  }
   if (!S.ui.showRank || !v) { modal.hidden = true; modal.innerHTML = ''; return; }
   const d = S.ui.detail;
   modal.hidden = false;
@@ -672,6 +681,8 @@ const A = {
   reopenRound: () => call('validation:reopen').catch(swallow),
   // ranking e som
   openRank: () => { S.ui.showRank = true; renderModal(); $('#modal button')?.focus(); },
+  openPlayers: () => { S.ui.showPlayers = true; renderModal(); },
+  closePlayers: () => { S.ui.showPlayers = false; renderModal(); },
   closeRank: () => { S.ui.showRank = false; S.ui.detail = null; renderModal(); },
   rankMode: (el) => { S.ui.rank = el.dataset.m; renderModal(); },
   roundDetail: async (el) => { S.ui.detail = await call('round:detail', { n: +el.dataset.n }).catch(() => null); renderModal(); },
@@ -689,7 +700,7 @@ const A = {
 
 document.addEventListener('click', (e) => {
   const sb = $('#soundbox'); if (sb && !e.target.closest('#soundbox, [data-act=soundMenu]')) sb.remove();
-  if (e.target === modal) { A.closeRank(); return; }
+  if (e.target === modal) { A.closeRank(); A.closePlayers(); return; }
   const el = e.target.closest('[data-act]');
   if (!el || el.disabled) return;
   if (el.type === 'checkbox' && el.dataset.act === 'catToggle') return; // tratado em 'change'
@@ -714,7 +725,7 @@ document.addEventListener('change', (e) => {
     const l = catList(); l[+t.dataset.catname].name = t.value; saveCats(l);
   }
 });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && S.ui.showRank) A.closeRank(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (S.ui.showRank) A.closeRank(); if (S.ui.showPlayers) A.closePlayers(); } });
 
 // ---------- conexão ----------
 function banner(msg) { const b = $('#banner'); b.hidden = !msg; b.textContent = msg || ''; }
