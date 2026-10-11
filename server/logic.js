@@ -4,7 +4,7 @@
 export const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 export const DEFAULT_CATEGORIES = [
-  'Nome próprio', 'Animal', 'Cidade', 'País', 'Fruta', 'Comida', 'Objeto',
+  'Nome próprio', 'Animal', 'Cidade', 'CEP (cidade, estado ou país)', 'Fruta', 'Comida', 'Objeto',
   'Profissão', 'Marca', 'Filme ou série', 'Cantor ou banda', 'Personagem',
   'Cor', 'Esporte', 'Parte do corpo', 'Celebridade', 'Planta ou flor',
   'Veículo', 'Adjetivo', 'Algo que existe na escola',
