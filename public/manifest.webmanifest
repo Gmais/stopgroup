@@ -1,0 +1,12 @@
+{
+  "name": "Stop Online",
+  "short_name": "Stop",
+  "description": "Adedonha online multiplayer",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1b1038",
+  "theme_color": "#1b1038",
+  "lang": "pt-BR",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

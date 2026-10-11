@@ -137,6 +137,7 @@ function renderTop() {
     <div class="rname"><span class="dot ${S.online ? '' : 'bad'}" title="${S.online ? 'Conectado' : 'Sem conexão'}"></span>${esc(v.name)}<small>${esc(v.code)}${n}</small></div>
     <button class="icon small" data-act="soundMenu" aria-label="Som">${Snd.mute ? '🔇' : '🔊'}</button>
     <button class="icon small ghost" data-act="leaveRoom" aria-label="Sair da sala">Sair</button></div>`;
+  document.documentElement.style.setProperty('--topH', topEl.offsetHeight + 'px');
 }
 
 function inviteLink(v) { return `${location.origin}/s/${v.code}`; }
@@ -333,6 +334,20 @@ function spinLetter(letter) {
   setTimeout(() => { clearInterval(id); el.classList.remove('spin'); el.textContent = letter; announce(`Letra sorteada: ${letter}`); }, 1100);
 }
 
+// ---- celular: tela sempre ligada durante a rodada, vibração e rolagem até o campo ----
+let wake = null;
+async function wantWake(on) {
+  try {
+    if (on && !wake && 'wakeLock' in navigator) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); }
+    else if (!on && wake) { await wake.release(); wake = null; }
+  } catch { /* sem suporte ou negado */ }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') wantWake(S.view?.phase === 'playing'); });
+const buzz = (p) => { try { navigator.vibrate?.(p); } catch { /* noop */ } };
+document.addEventListener('focusin', (e) => {
+  if (e.target.matches?.('#answers input')) setTimeout(() => e.target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 250);
+});
+
 // ---- respostas: salvamento automático com debounce ----
 const timers = new Map();
 function collectAnswers() { return Object.fromEntries($$('#answers input').map((i) => [i.dataset.cat, i.value])); }
@@ -377,10 +392,10 @@ function entryHtml(e, v, interactive) {
     const canVote = mode !== 'admin' && !mine && e.auto && r.participating && !r.myVoteConfirmed;
     if (canVote) {
       const b = (val, label, cls) => `<button class="small vbtn ${cls} ${e.myVote === val ? 'sel' : ''}" data-act="vote" data-a="${e.pid}" data-c="${e.catId}" data-v="${val}" aria-pressed="${e.myVote === val}">${label}</button>`;
-      ctl += `<div class="row">${b('v', '👍 Válida', 'good')}${b('i', '👎 Inválida', 'danger')}${b('u', '🤷 Não sei', '')}</div>`;
+      ctl += `<div class="vrow">${b('v', '👍 Válida', 'good')}${b('i', '👎 Inválida', 'danger')}${b('u', '🤷 Não sei', '')}</div>`;
     }
     if (admin) {
-      ctl += `<div class="row"><button class="small good" data-act="decide" data-a="${e.pid}" data-c="${e.catId}" data-s="valid">✔ Aprovar</button>
+      ctl += `<div class="actrow"><button class="small good" data-act="decide" data-a="${e.pid}" data-c="${e.catId}" data-s="valid">✔ Aprovar</button>
         <button class="small danger" data-act="decide" data-a="${e.pid}" data-c="${e.catId}" data-s="invalid">✖ Rejeitar</button>
         <button class="small" data-act="decide" data-a="${e.pid}" data-c="${e.catId}" data-s="controversial">⚠ Controversa</button>
         ${v.settings.scoring.partialEnabled ? `<button class="small" data-act="decide" data-a="${e.pid}" data-c="${e.catId}" data-s="partial">½ Parcial</button>` : ''}
@@ -414,7 +429,7 @@ function validationScreen(v) {
   return `${adminAbsentBanner(v)}${roundHeader(v)}
     <div class="card"><b>Validação</b> — ${modeTxt}${r.pendingCount ? `<br><span class="chip warn">⚠ ${r.pendingCount} resposta(s) aguardando o administrador</span>` : ''}</div>
     ${boardHtml(v, true)}
-    <div class="actionbar" style="flex-direction:column;align-items:stretch">
+    <div class="actionbar" data-val style="flex-direction:column;align-items:stretch">
       ${mode !== 'admin' && r.participating ? `<button class="${r.myVoteConfirmed ? '' : 'primary'}" data-act="confirmVotes" ${r.myVoteConfirmed ? 'disabled' : ''}>${r.myVoteConfirmed ? 'Votos confirmados ✔' : 'Confirmar meus votos'}</button>
         <small class="center">${r.votesDone}/${r.votesTotal} jogadores confirmaram</small>` : ''}
       ${admin ? `<div class="row"><button class="primary grow" data-act="finalize">Finalizar validação${r.pendingCount ? ` (${r.pendingCount} pendente${r.pendingCount > 1 ? 's' : ''})` : ''}</button>
@@ -478,7 +493,11 @@ function rankTable(v, mode) {
     return `<table class="tbl"><thead><tr><th>#</th><th>Jogador</th><th class="n">Pts na rodada</th></tr></thead><tbody>${list.map((x, i) => `<tr><td>${i + 1}</td><td>${esc(x.name)}</td><td class="n"><b>${r[x.id].total}</b></td></tr>`).join('')}</tbody></table>${v.phase === 'validating' ? '<small class="muted">Pontuação provisória (validação em andamento).</small>' : ''}`;
   }
   const rounds = rows[0].perRound;
-  return `<table class="tbl"><thead><tr><th>#</th><th>Jogador</th><th class="n">Total</th>${rounds.map((x) => `<th class="n"><button class="small ghost" data-act="roundDetail" data-n="${x.n}" title="Ver rodada ${x.n}">R${x.n} ${x.letter}</button></th>`).join('')}
+  const cards = `<div class="rk-cards">${rows.map((x) => `<div class="rk"><span class="pos">${x.pos <= 3 ? medals[x.pos - 1] : x.pos}</span>
+    <span class="nm">${esc(x.name)}${x.id === v.you.id ? ' <small>(você)</small>' : ''}</span><b class="tt">${x.total}</b>
+    <div class="st"><span class="chip ok">${x.unique} únicas</span><span class="chip warn">${x.repeated} repet.</span><span class="chip no">${x.invalid} inválidas</span><span class="chip mut">${x.blank} brancos</span>
+    ${x.perRound.map((p) => `<button class="small ghost" data-act="roundDetail" data-n="${p.n}">R${p.n} ${p.letter}: ${p.points}</button>`).join('')}</div></div>`).join('')}</div>`;
+  return cards + `<table class="tbl rk-table"><thead><tr><th>#</th><th>Jogador</th><th class="n">Total</th>${rounds.map((x) => `<th class="n"><button class="small ghost" data-act="roundDetail" data-n="${x.n}" title="Ver rodada ${x.n}">R${x.n} ${x.letter}</button></th>`).join('')}
     <th class="n">Únicas</th><th class="n">Repet.</th><th class="n">Inválidas</th><th class="n">Brancos</th></tr></thead><tbody>
     ${rows.map((x) => `<tr><td>${x.pos <= 3 ? medals[x.pos - 1] : x.pos}</td><td>${esc(x.name)}${x.id === v.you.id ? ' <small>(você)</small>' : ''}</td><td class="n"><b>${x.total}</b></td>
       ${x.perRound.map((p) => `<td class="n">${p.points}</td>`).join('')}<td class="n">${x.unique}</td><td class="n">${x.repeated}</td><td class="n">${x.invalid}</td><td class="n">${x.blank}</td></tr>`).join('')}</tbody></table>`;
@@ -543,6 +562,7 @@ function render() {
       default: mount('x', () => '');
     }
   }
+  wantWake(v.phase === 'playing');
   renderModal();
 }
 document.addEventListener('focusout', () => { if (S.dirty) setTimeout(() => { if (S.dirty) render(); }, 80); });
@@ -715,8 +735,8 @@ socket.on('state', (v) => {
   S.offset = v.serverNow - Date.now();
   S.view = v;
   if (!prev || prev.round?.id !== v.round?.id || prev.phase !== v.phase) {
-    if (v.phase === 'playing' && (!prev || prev.round?.id !== v.round?.id)) Snd.draw();
-    else if (prev && v.phase === 'validating' && prev.phase === 'playing') Snd.stop();
+    if (v.phase === 'playing' && (!prev || prev.round?.id !== v.round?.id)) { Snd.draw(); buzz(80); }
+    else if (prev && v.phase === 'validating' && prev.phase === 'playing') { Snd.stop(); buzz([60, 40, 60]); }
     else if (prev && v.phase === 'results' && prev.phase !== 'results') Snd.done();
   }
   if (prev && prev.phase !== v.phase && S.ui.showRank) S.ui.detail = null;
