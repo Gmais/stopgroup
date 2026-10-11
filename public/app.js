@@ -379,7 +379,7 @@ function entryHtml(e, v, interactive) {
       const b = (val, label, cls) => `<button class="small vbtn ${cls} ${e.myVote === val ? 'sel' : ''}" data-act="vote" data-a="${e.pid}" data-c="${e.catId}" data-v="${val}" aria-pressed="${e.myVote === val}">${label}</button>`;
       ctl += `<div class="row">${b('v', '👍 Válida', 'good')}${b('i', '👎 Inválida', 'danger')}${b('u', '🤷 Não sei', '')}</div>`;
     }
-    if (admin && (mode !== 'players' || e.pending)) {
+    if (admin) {
       ctl += `<div class="row"><button class="small good" data-act="decide" data-a="${e.pid}" data-c="${e.catId}" data-s="valid">✔ Aprovar</button>
         <button class="small danger" data-act="decide" data-a="${e.pid}" data-c="${e.catId}" data-s="invalid">✖ Rejeitar</button>
         <button class="small" data-act="decide" data-a="${e.pid}" data-c="${e.catId}" data-s="controversial">⚠ Controversa</button>
