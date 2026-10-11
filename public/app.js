@@ -435,7 +435,7 @@ function validationScreen(v) {
     ${boardHtml(v, true)}
     <div class="actionbar" data-val style="flex-direction:column;align-items:stretch">
       ${mode !== 'admin' && r.participating ? `<button class="${r.myVoteConfirmed ? '' : 'primary'}" data-act="confirmVotes" ${r.myVoteConfirmed ? 'disabled' : ''}>${r.myVoteConfirmed ? 'Votos confirmados ✔' : 'Confirmar meus votos'}</button>
-        <small class="center">${r.votesDone}/${r.votesTotal} jogadores confirmaram</small>` : ''}
+        <small class="center">${r.votesDone}/${r.votesTotal} jogadores confirmaram${r.votesPending?.length ? `<br>Faltam votar: ${r.votesPending.map((p) => `<b>${esc(p.name)}</b>${p.online ? '' : ' (offline)'}`).join(', ')}` : ''}</small>` : ''}
       ${admin ? `<div class="row"><button class="primary grow" data-act="finalize">Finalizar validação${r.pendingCount ? ` (${r.pendingCount} pendente${r.pendingCount > 1 ? 's' : ''})` : ''}</button>
         ${mode !== 'admin' ? '<button data-act="reopenVotes">Reabrir votação</button>' : ''}<button class="danger" data-act="voidRound">Anular rodada</button></div>`
         : (mode === 'admin' || hybridWait(v) ? '<small class="center">Aguardando o administrador…</small>' : '')}

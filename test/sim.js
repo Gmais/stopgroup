@@ -139,6 +139,7 @@ ok(entry(duda, c1, 'Duda').text === `${L1}duda`, 'reconexão preserva as respost
 eq(duda.state.round.myAnswers[c3], `${L1}eco`, 'reconexão devolve respostas do próprio jogador');
 await duda.must('vote', { authorId: ana.me, catId: c2, vote: 'u' });
 
+ok(ana.state.round.votesPending.some((p) => p.name === 'Bia'), 'lista quem ainda não concluiu a votação');
 for (const c of [bia, caio, duda]) await c.must('votes:confirm');
 r = await bia.call('vote', { authorId: ana.me, catId: c2, vote: 'i' });
 ok(!r.ok, 'voto não pode ser alterado após confirmação');

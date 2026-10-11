@@ -651,6 +651,8 @@ export class GameManager {
     const connected = r.participants.filter((id) => room.players[id] && !room.players[id].removed && this.isConnected(room, id));
     out.votesDone = connected.filter((id) => r.voteConfirmed[id]).length;
     out.votesTotal = connected.length;
+    const active = r.participants.filter((id) => room.players[id] && !room.players[id].removed && !r.voteConfirmed[id]);
+    out.votesPending = active.map((id) => ({ name: room.players[id].name, online: this.isConnected(room, id) }));
     out.pendingCount = Object.values(ev.items).filter((i) => i.pending).length;
     return out;
   }
