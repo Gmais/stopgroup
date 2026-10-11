@@ -425,6 +425,17 @@ function roundHeader(v) {
   return `<div class="hud"><div class="letter">${esc(r.letter)}</div><div><h2>Rodada ${r.n}</h2><p class="muted">${why}</p></div></div>`;
 }
 
+function provisionalHtml(v) {
+  const r = v.round;
+  const prev = Object.fromEntries(v.ranking.map((x) => [x.id, x.total]));
+  const rows = v.players.filter((p) => r.scores[p.id]).map((p) => ({ p, rd: r.scores[p.id].total, tot: (prev[p.id] || 0) + r.scores[p.id].total }))
+    .sort((a, b) => b.tot - a.tot || b.rd - a.rd);
+  let pos = 0;
+  return `<div class="card"><h2>📊 Placar provisório</h2>
+    <p class="muted">Seus votos foram confirmados. Os pontos podem mudar até o administrador finalizar a validação.</p>
+    ${rows.map((x, i) => { if (!i || x.tot !== rows[i - 1].tot) pos = i + 1; return `<div class="rk"><span class="pos">${pos <= 3 ? medals[pos - 1] : pos}</span><span class="nm">${esc(x.p.name)}${x.p.id === v.you.id ? ' <small>(você)</small>' : ''}</span><b class="tt">${x.tot}</b><div class="st"><span class="chip ok">+${x.rd} nesta rodada</span></div></div>`; }).join('')}</div>`;
+}
+
 function validationScreen(v) {
   const r = v.round, s = v.settings;
   if (r.revealing || !r.board) return `${roundHeader(v)}<div class="card center"><h2>Reunindo as respostas…</h2></div>`;
@@ -432,7 +443,9 @@ function validationScreen(v) {
   const modeTxt = { admin: 'O administrador valida as respostas.', players: 'Votem nas respostas dos colegas. Você não vota na sua.', hybrid: 'Jogadores votam; o administrador decide os controversos.' }[mode];
   return `${adminAbsentBanner(v)}${roundHeader(v)}
     <div class="card"><b>Validação</b> — ${modeTxt}${r.pendingCount ? `<br><span class="chip warn">⚠ ${r.pendingCount} resposta(s) aguardando o administrador</span>` : ''}</div>
-    ${boardHtml(v, true)}
+    ${r.myVoteConfirmed && mode !== 'admin'
+      ? `${provisionalHtml(v)}<details class="card" id="rev" ${admin || S.ui.revOpen ? 'open' : ''}><summary>Rever respostas e votos</summary>${boardHtml(v, true)}</details>`
+      : boardHtml(v, true)}
     <div class="actionbar" data-val style="flex-direction:column;align-items:stretch">
       ${mode !== 'admin' && r.participating ? `<button class="${r.myVoteConfirmed ? '' : 'primary'}" data-act="confirmVotes" ${r.myVoteConfirmed ? 'disabled' : ''}>${r.myVoteConfirmed ? 'Votos confirmados ✔' : 'Confirmar meus votos'}</button>
         <small class="center">${r.votesDone}/${r.votesTotal} jogadores confirmaram${r.votesPending?.length ? `<br>Faltam votar: ${r.votesPending.map((p) => `<b>${esc(p.name)}</b>${p.online ? '' : ' (offline)'}`).join(', ')}` : ''}</small>` : ''}
@@ -577,6 +590,7 @@ function render() {
   wantWake(v.phase === 'playing');
   renderModal();
 }
+document.addEventListener('toggle', (e) => { if (e.target.id === 'rev') S.ui.revOpen = e.target.open; }, true);
 document.addEventListener('focusout', () => { if (S.dirty) setTimeout(() => { if (S.dirty) render(); }, 80); });
 
 // ---------- ações ----------
