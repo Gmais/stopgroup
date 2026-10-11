@@ -66,7 +66,7 @@ await ana.wait((s) => s.players.length === 4, '4 jogadores');
 ok(ana.state.players.find((p) => p.isAdmin).name === 'Ana', 'administrador identificado');
 
 console.log('\n== Permissões ==');
-r = await bia.call('settings', { endMode: 'timer' });
+r = await bia.call('settings', { endModes: ['timer'] });
 ok(!r.ok && r.code === 'FORBIDDEN', 'jogador comum não altera configurações');
 r = await bia.call('round:start');
 ok(!r.ok, 'jogador comum não inicia partida');
@@ -77,7 +77,7 @@ console.log('\n== Rodada 1: STOP manual simultâneo, votação, empate ==');
 const cats = ana.state.settings.categories.slice(0, 3).map((c, i) => ({ ...c, active: true }));
 await ana.must('settings', {
   categories: ana.state.settings.categories.map((c, i) => ({ ...c, active: i < 3 })),
-  endMode: 'manual', validationMode: 'players', minVotes: 2, tieRule: 'admin', noRepeatLetters: true,
+  endModes: ['manual'], validationMode: 'players', minVotes: 2, tieRule: 'admin', noRepeatLetters: true,
 });
 await ana.must('round:start');
 await Promise.all([ana, bia, caio, duda].map((c) => c.wait((s) => s.phase === 'playing', 'rodada')));
@@ -169,7 +169,7 @@ eq(ana.state.ranking.find((x) => x.name === 'Ana').total, 15, 'correção recalc
 eq(ana.state.ranking.find((x) => x.name === 'Duda').total, 25, 'Duda recalculada (30→25), nada somado em duplicidade');
 
 console.log('\n== Rodada 2: cronômetro ==');
-await ana.must('settings', { endMode: 'timer', timerSec: 10, validationMode: 'admin' });
+await ana.must('settings', { endModes: ['timer'], timerSec: 10, validationMode: 'admin' });
 await ana.must('round:start');
 await duda.wait((s) => s.phase === 'playing' && s.round.n === 2, 'rodada 2');
 const L2 = duda.state.round.letter;
@@ -200,7 +200,7 @@ ok(entry(ana, d1, 'Duda').points === 5 && entry(ana, d1, 'Ana').points === 5, 'r
 await ana.must('validation:finalize');
 
 console.log('\n== Rodada 3: todos terminaram + remoção de jogador ==');
-await ana.must('settings', { endMode: 'all' });
+await ana.must('settings', { endModes: ['all'] });
 await ana.must('player:kick', { playerId: caio.me });
 await ana.wait((s) => s.players.length === 3, 'Caio removido');
 ok(!ana.state.players.some((p) => p.name === 'Caio'), 'administrador removeu Caio');
@@ -219,6 +219,20 @@ await ana.must('round:void');
 await ana.wait((s) => s.round.voided, 'anulada');
 ok(ana.state.round.voided, 'administrador anulou a rodada');
 ok(!ana.state.letters.used.includes(ana.state.round.letter), 'letra da rodada anulada volta ao sorteio');
+
+console.log('\n== Modos de encerramento combinados ==');
+await ana.must('settings', { endModes: ['timer', 'manual', 'all'], timerSec: 30 });
+eq(ana.state.settings.endModes, ['manual', 'all', 'timer'], 'três modos podem ficar ativos ao mesmo tempo');
+await ana.call('settings', { endModes: [] });
+eq(ana.state.settings.endModes.length, 3, 'lista vazia é ignorada (mantém ao menos um modo)');
+await ana.must('round:start');
+await bia.wait((s) => s.phase === 'playing', 'rodada combinada');
+ok(bia.state.round.endsAt - Date.now() > 25000, 'cronômetro ativo junto com STOP manual');
+await bia.must('stop', {});
+await ana.wait((s) => s.phase === 'validating', 'stop com combinação');
+ok(ana.state.round.endReason === 'stop', 'STOP manual encerra mesmo com cronômetro ligado');
+await ana.wait((s) => s.round.board, 'revelar combinada');
+await ana.must('round:void');
 
 console.log('\n== Transferência de administração e fim ==');
 await ana.must('admin:transfer', { playerId: bia.me });

@@ -158,7 +158,7 @@ function adminAbsentBanner(v) {
 
 function rulesSummary(v) {
   const s = v.settings;
-  const end = { manual: 'STOP manual', all: 'Todos terminaram', timer: `Cronômetro (${s.timerSec}s)` }[s.endMode];
+  const end = s.endModes.map((m) => ({ manual: 'STOP manual', all: 'Todos terminaram', timer: `Cronômetro (${s.timerSec}s)` }[m])).join(' + ');
   const val = { admin: 'Pelo administrador', players: 'Pelos jogadores', hybrid: 'Híbrida' }[s.validationMode];
   const nc = s.categories.filter((c) => c.active).length;
   return `<dl class="kv"><dt>Categorias</dt><dd>${s.maxCategoriesPerRound > 0 ? Math.min(nc, s.maxCategoriesPerRound) + ' por rodada (de ' + nc + ')' : nc + ' ativas'}</dd>
@@ -220,8 +220,11 @@ function settingsScreen(v) {
   </div>
   <div class="card"><h3>Encerramento da rodada</h3>
     <div class="field-grid">
-    <label class="f"><span>Modo</span>${selectHtml('endMode', [['manual', 'A — STOP manual (qualquer jogador)'], ['all', 'B — Todos terminaram'], ['timer', 'C — Cronômetro']], s.endMode)}</label>
-    <label class="f"><span>Tempo da rodada (segundos)</span>${numHtml('timerSec', s.timerSec, 10, 900)}</label></div>
+    <div><span class="muted">Escolha uma ou mais — a rodada termina pelo que ocorrer primeiro</span>
+      <label class="chk"><input type="checkbox" data-endmode="manual" ${s.endModes.includes('manual') ? 'checked' : ''}>A — STOP manual (qualquer jogador)</label>
+      <label class="chk"><input type="checkbox" data-endmode="all" ${s.endModes.includes('all') ? 'checked' : ''}>B — Todos terminaram</label>
+      <label class="chk"><input type="checkbox" data-endmode="timer" ${s.endModes.includes('timer') ? 'checked' : ''}>C — Cronômetro</label></div>
+    <label class="f"><span>Tempo da rodada (segundos)${s.endModes.includes('timer') ? '' : ' — só vale com o cronômetro ligado'}</span>${numHtml('timerSec', s.timerSec, 10, 900)}</label></div>
     <div class="row">${[60, 90, 120].map((t) => `<button class="small" data-act="timerPreset" data-t="${t}">${t}s</button>`).join('')}</div>
   </div>
   <div class="card"><h3>Validação das respostas</h3>
@@ -253,7 +256,7 @@ function settingsScreen(v) {
 // ---------- tela de jogo (atualizada de forma incremental) ----------
 function gameScreen(v) {
   const r = v.round, s = v.settings;
-  const confirmLabel = s.endMode === 'all' ? 'Terminei ✔' : 'Confirmar respostas';
+  const confirmLabel = s.endModes.includes('all') ? 'Terminei ✔' : 'Confirmar respostas';
   return `<div data-incremental>
   ${top3Html(v)}
   <div class="hud"><div class="letter" id="letter" role="img" aria-label="Letra sorteada ${esc(r.letter)}">${esc(r.letter)}</div>
@@ -265,7 +268,7 @@ function gameScreen(v) {
     <input id="a_${c.id}" data-cat="${c.id}" maxlength="60" enterkeyhint="${i === r.categories.length - 1 ? 'done' : 'next'}" autocapitalize="sentences" spellcheck="false" placeholder="${esc(r.letter)}…"></div>`).join('')}</form>
   <div class="actionbar"><span class="save" id="save" aria-live="polite"></span>
     <button class="good" id="confirmBtn" data-act="confirm">${confirmLabel}</button>
-    ${s.endMode === 'manual' ? '<button class="stopbtn" id="stopBtn" data-act="stop">STOP!</button>' : ''}</div>
+    ${s.endModes.includes('manual') ? '<button class="stopbtn" id="stopBtn" data-act="stop">STOP!</button>' : ''}</div>
   <div class="card"><h3>Jogadores</h3><div class="pchips" id="pchips"></div>
     <p class="muted" style="margin-top:8px">Letras usadas: <span class="letters-used" id="lused"></span></p></div>
   <div id="gadmin"></div></div>`;
@@ -643,7 +646,7 @@ const A = {
   },
   lettersAll: () => call('settings', { enabledLetters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('') }).catch(swallow),
   lettersEasy: () => call('settings', { enabledLetters: 'ABCDEFGHIJLMNOPQRSTUVZ'.split('') }).catch(swallow),
-  timerPreset: (el) => call('settings', { timerSec: +el.dataset.t, endMode: 'timer' }).catch(swallow),
+  timerPreset: (el) => call('settings', { timerSec: +el.dataset.t, endModes: [...new Set([...S.view.settings.endModes, 'timer'])] }).catch(swallow),
   // jogo
   confirm: async () => {
     try { await call('confirm', { answers: collectAnswers() }); setSave('ok'); } catch { /* toast */ }
@@ -699,7 +702,12 @@ document.addEventListener('submit', (e) => {
 document.addEventListener('change', (e) => {
   const t = e.target;
   if (t.dataset?.act === 'catToggle') return A.catToggle(t);
-  if (t.dataset?.set) {
+  if (t.dataset?.endmode) {
+    const cur = new Set(S.view.settings.endModes);
+    t.checked ? cur.add(t.dataset.endmode) : cur.delete(t.dataset.endmode);
+    if (!cur.size) { t.checked = true; toast('Mantenha ao menos um modo de encerramento.', true); return; }
+    call('settings', { endModes: [...cur] }).catch(swallow);
+  } else if (t.dataset?.set) {
     const val = t.type === 'checkbox' ? t.checked : t.type === 'number' ? Number(t.value) : t.value;
     setPatch(t.dataset.set, val);
   } else if (t.dataset?.catname !== undefined) {

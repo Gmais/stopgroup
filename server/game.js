@@ -59,6 +59,7 @@ export class GameManager {
     for (const json of this.db.loadRooms()) {
       try {
         const room = this.attachRuntime(JSON.parse(json));
+        if (!room.settings.endModes) room.settings.endModes = [room.settings.endMode || 'manual']; // salas antigas
         this.rooms.set(room.code, room);
         const r = curRound(room);
         if (room.phase === 'playing' && r && !room.paused && r.endsAt) {
@@ -308,7 +309,7 @@ export class GameManager {
     const round = {
       id: crypto.randomUUID(), n: opts.n ?? finished + 1, letter, categories,
       startedAt: now,
-      endsAt: s.endMode === 'timer' ? now + s.timerSec * 1000 : null,
+      endsAt: s.endModes.includes('timer') ? now + s.timerSec * 1000 : null,
       remainingMs: null, endedAt: null, endReason: null, stoppedBy: null, lockAt: 0,
       participants: activePlayers(room).map((x) => x.id),
       answers: {}, confirmedAt: {}, votes: {}, voteConfirmed: {}, decisions: {},
@@ -392,7 +393,7 @@ export class GameManager {
   }
 
   stop(room, p, payload = {}) {
-    if (room.settings.endMode !== 'manual') fail('O STOP manual está desativado nesta partida.');
+    if (!room.settings.endModes.includes('manual')) fail('O STOP manual está desativado nesta partida.');
     if (room.phase !== 'playing') fail('A rodada já terminou.', 'ENDED');
     if (room.paused) fail('A partida está pausada.');
     const r = curRound(room);
@@ -438,7 +439,7 @@ export class GameManager {
     const r = curRound(room);
     if (!r) return;
     const connected = r.participants.filter((id) => room.players[id] && !room.players[id].removed && this.isConnected(room, id));
-    if (room.phase === 'playing' && !room.paused && room.settings.endMode === 'all') {
+    if (room.phase === 'playing' && !room.paused && room.settings.endModes.includes('all')) {
       if (connected.length && connected.every((id) => r.confirmedAt[id])) this.endRound(room, 'all');
     } else if (room.phase === 'validating' && room.settings.validationMode === 'players' && Date.now() > r.lockAt) {
       if (connected.length && connected.every((id) => r.voteConfirmed[id])) this.finalize(room, null, true);

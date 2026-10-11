@@ -25,7 +25,7 @@ export function defaultSettings() {
     noRepeatLetters: true,
     onLettersExhausted: 'end', // 'end' | 'cycle'
     maxCategoriesPerRound: 0, // 0 = todas as ativas
-    endMode: 'manual', // 'manual' | 'all' | 'timer'
+    endModes: ['manual'], // qualquer combinação de 'manual' | 'all' | 'timer' (o primeiro que ocorrer encerra)
     timerSec: 90,
     validationMode: 'players', // 'admin' | 'players' | 'hybrid'
     minVotes: 2,
@@ -106,7 +106,10 @@ export function applySettingsPatch(cur, patch) {
   if ('noRepeatLetters' in p) s.noRepeatLetters = !!p.noRepeatLetters;
   if ('onLettersExhausted' in p) s.onLettersExhausted = oneOf(p.onLettersExhausted, ['end', 'cycle'], s.onLettersExhausted);
   if ('maxCategoriesPerRound' in p) s.maxCategoriesPerRound = clamp(p.maxCategoriesPerRound, 0, MAX_CATEGORIES, 0);
-  if ('endMode' in p) s.endMode = oneOf(p.endMode, ['manual', 'all', 'timer'], s.endMode);
+  if (Array.isArray(p.endModes)) {
+    const m = ['manual', 'all', 'timer'].filter((x) => p.endModes.includes(x));
+    if (m.length) s.endModes = m;
+  }
   if ('timerSec' in p) s.timerSec = clamp(p.timerSec, 10, 900, 90);
   if ('validationMode' in p) s.validationMode = oneOf(p.validationMode, ['admin', 'players', 'hybrid'], s.validationMode);
   if ('minVotes' in p) s.minVotes = clamp(p.minVotes, 1, 20, 2);
