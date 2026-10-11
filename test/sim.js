@@ -109,6 +109,7 @@ ok(r.ok && r.data.locked, 'respostas bloqueadas após o STOP');
 await ana.wait((s) => s.round.board, 'revelação das respostas');
 const entry = (c, catId, name) => c.state.round.board.find((b) => b.id === catId).entries.find((e) => e.name === name);
 ok(entry(ana, c1, 'Duda').text === `${L1}duda`, 'respostas reveladas após o fim');
+ok(ana.state.round.board.every((b) => b.entries.every((e) => e.catId === b.id && e.pid)), 'cada resposta traz catId/pid (os botões de voto e decisão dependem disso)');
 
 // o autor não vota na própria resposta
 r = await ana.call('vote', { authorId: ana.me, catId: c1, vote: 'v' });

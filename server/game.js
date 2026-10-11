@@ -661,7 +661,7 @@ export class GameManager {
       entries: r.participants.filter((id) => room.players[id] && !room.players[id].removed).map((id) => {
         const it = ev.items[answerKey(id, cat.id)];
         return {
-          pid: id, name: room.players[id].name, text: it.text, raw: it.raw, corrected: it.corrected,
+          pid: id, catId: cat.id, name: room.players[id].name, text: it.text, raw: it.raw, corrected: it.corrected,
           status: it.status, source: it.source, pending: it.pending, auto: it.auto, dup: !!it.dup,
           votes: it.votes, myVote: r.votes[voteKey(pid, id, cat.id)] || null,
           points: it.points, reason: it.reason,
