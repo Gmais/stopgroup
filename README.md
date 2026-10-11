@@ -12,3 +12,7 @@ restaurado ao reiniciar; salas inativas expiram (6 h; 1 h após o fim; 30 min se
 
 Notas: tolerância de 800 ms para respostas já em trânsito no instante do fim da rodada; tokens de jogador ficam só no
 navegador (o servidor guarda o hash); para produção use HTTPS atrás de proxy e `TRUST_PROXY=1`.
+
+## Deploy
+Precisa de um host Node contínuo (WebSocket). Vercel serve só estáticos e **não** funciona para este jogo.
+`render.yaml` configura o Render (Blueprint). No plano free as salas não sobrevivem a reinícios.

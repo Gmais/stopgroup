@@ -1,0 +1,21 @@
+# Deploy no Render: Dashboard > New > Blueprint > selecione este repositório.
+services:
+  - type: web
+    name: stopgroup
+    runtime: node
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 24
+      - key: TRUST_PROXY
+        value: "1"
+    # Plano free não tem disco: as salas somem se o serviço reiniciar/dormir.
+    # Para persistir, use plano pago, descomente abaixo e defina DB_FILE:
+    # disk:
+    #   name: stop-data
+    #   mountPath: /var/data
+    #   sizeGB: 1
+    # (e em envVars: DB_FILE=/var/data/stop.db)
